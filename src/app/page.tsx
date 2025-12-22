@@ -1,65 +1,382 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import { useState, useEffect } from "react";
+import Modal from "@/components/Modal";
+import StudentForm from "@/components/StudentForm";
+import GroupForm from "@/components/GroupForm";
+import ConfirmDialog from "@/components/ConfirmDialog";
+import { StudentWithPendingPayment, GroupWithPendingPayment } from "@/types";
+
+type ModalType = "createStudent" | "editStudent" | "deleteStudent" | "createGroup" | "editGroup" | "deleteGroup" | null;
+
+export default function StudentsAndGroupsPage() {
+  const [students, setStudents] = useState<StudentWithPendingPayment[]>([]);
+  const [groups, setGroups] = useState<GroupWithPendingPayment[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [modalType, setModalType] = useState<ModalType>(null);
+  const [selectedStudent, setSelectedStudent] = useState<StudentWithPendingPayment | null>(null);
+  const [selectedGroup, setSelectedGroup] = useState<GroupWithPendingPayment | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const fetchData = async () => {
+    try {
+      const [studentsRes, groupsRes] = await Promise.all([
+        fetch("/api/students"),
+        fetch("/api/groups"),
+      ]);
+
+      if (studentsRes.ok && groupsRes.ok) {
+        const studentsData = await studentsRes.json();
+        const groupsData = await groupsRes.json();
+        setStudents(studentsData);
+        setGroups(groupsData);
+      }
+    } catch (error) {
+      console.error("Error fetching data:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const closeModal = () => {
+    setModalType(null);
+    setSelectedStudent(null);
+    setSelectedGroup(null);
+  };
+
+  const handleCreateStudent = async (name: string) => {
+    const res = await fetch("/api/students", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    });
+
+    if (res.ok) {
+      await fetchData();
+      closeModal();
+    }
+  };
+
+  const handleEditStudent = async (name: string) => {
+    if (!selectedStudent) return;
+
+    const res = await fetch(`/api/students/${selectedStudent.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    });
+
+    if (res.ok) {
+      await fetchData();
+      closeModal();
+    }
+  };
+
+  const handleDeleteStudent = async () => {
+    if (!selectedStudent) return;
+
+    setIsDeleting(true);
+    try {
+      const res = await fetch(`/api/students/${selectedStudent.id}`, {
+        method: "DELETE",
+      });
+
+      if (res.ok) {
+        await fetchData();
+        closeModal();
+      }
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleCreateGroup = async (name: string) => {
+    const res = await fetch("/api/groups", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    });
+
+    if (res.ok) {
+      await fetchData();
+      closeModal();
+    }
+  };
+
+  const handleEditGroup = async (name: string) => {
+    if (!selectedGroup) return;
+
+    const res = await fetch(`/api/groups/${selectedGroup.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    });
+
+    if (res.ok) {
+      await fetchData();
+      closeModal();
+    }
+  };
+
+  const handleDeleteGroup = async () => {
+    if (!selectedGroup) return;
+
+    setIsDeleting(true);
+    try {
+      const res = await fetch(`/api/groups/${selectedGroup.id}`, {
+        method: "DELETE",
+      });
+
+      if (res.ok) {
+        await fetchData();
+        closeModal();
+      }
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat("es-ES", {
+      style: "currency",
+      currency: "PLN",
+    }).format(amount);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
+    <div className="space-y-8">
+      <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+        Mis Alumnos y Grupos
+      </h1>
+
+      {/* Students Section */}
+      <section>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2">
+            <span>👤</span> Alumnos
+          </h2>
+          <button
+            onClick={() => setModalType("createStudent")}
+            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors"
+          >
+            + Nuevo Alumno
+          </button>
+        </div>
+
+        {students.length === 0 ? (
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 text-center text-gray-500 dark:text-gray-400">
+            No hay alumnos registrados. ¡Crea el primero!
+          </div>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {students.map((student) => (
+              <div
+                key={student.id}
+                className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 hover:shadow-md transition-shadow"
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <h3 className="font-medium text-gray-900 dark:text-white">
+                      {student.name}
+                    </h3>
+                    <p
+                      className={`text-sm mt-1 \${
+                        student.pendingPayment > 0
+                          ? "text-red-600 dark:text-red-400 font-medium"
+                          : "text-green-600 dark:text-green-400"
+                      }`}
+                    >
+                      {student.pendingPayment > 0
+                        ? `Pendiente: \${formatCurrency(student.pendingPayment)}`
+                        : "Sin pagos pendientes"}
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => {
+                        setSelectedStudent(student);
+                        setModalType("editStudent");
+                      }}
+                      className="p-2 text-gray-600 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400"
+                      title="Editar"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setSelectedStudent(student);
+                        setModalType("deleteStudent");
+                      }}
+                      className="p-2 text-gray-600 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400"
+                      title="Eliminar"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* Groups Section */}
+      <section>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2">
+            <span>👥</span> Grupos
+          </h2>
+          <button
+            onClick={() => setModalType("createGroup")}
+            className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 transition-colors"
+          >
+            + Nuevo Grupo
+          </button>
+        </div>
+
+        {groups.length === 0 ? (
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 text-center text-gray-500 dark:text-gray-400">
+            No hay grupos registrados. ¡Crea el primero!
+          </div>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {groups.map((group) => (
+              <div
+                key={group.id}
+                className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 hover:shadow-md transition-shadow border-l-4 border-green-500"
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <h3 className="font-medium text-gray-900 dark:text-white">
+                      {group.name}
+                    </h3>
+                    <p
+                      className={`text-sm mt-1 \${
+                        group.pendingPayment > 0
+                          ? "text-red-600 dark:text-red-400 font-medium"
+                          : "text-green-600 dark:text-green-400"
+                      }`}
+                    >
+                      {group.pendingPayment > 0
+                        ? `Pendiente: \${formatCurrency(group.pendingPayment)}`
+                        : "Sin pagos pendientes"}
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => {
+                        setSelectedGroup(group);
+                        setModalType("editGroup");
+                      }}
+                      className="p-2 text-gray-600 hover:text-green-600 dark:text-gray-400 dark:hover:text-green-400"
+                      title="Editar"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setSelectedGroup(group);
+                        setModalType("deleteGroup");
+                      }}
+                      className="p-2 text-gray-600 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400"
+                      title="Eliminar"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* Modals */}
+      <Modal
+        isOpen={modalType === "createStudent"}
+        onClose={closeModal}
+        title="Nuevo Alumno"
+      >
+        <StudentForm onSubmit={handleCreateStudent} onCancel={closeModal} />
+      </Modal>
+
+      <Modal
+        isOpen={modalType === "editStudent"}
+        onClose={closeModal}
+        title="Editar Alumno"
+      >
+        <StudentForm
+          student={selectedStudent}
+          onSubmit={handleEditStudent}
+          onCancel={closeModal}
         />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+      </Modal>
+
+      <Modal
+        isOpen={modalType === "deleteStudent"}
+        onClose={closeModal}
+        title="Eliminar Alumno"
+      >
+        <ConfirmDialog
+          message={`¿Estás seguro de que deseas eliminar a "\${selectedStudent?.name}"? Esta acción también eliminará todas las clases asociadas.`}
+          onConfirm={handleDeleteStudent}
+          onCancel={closeModal}
+          isDeleting={isDeleting}
+        />
+      </Modal>
+
+      <Modal
+        isOpen={modalType === "createGroup"}
+        onClose={closeModal}
+        title="Nuevo Grupo"
+      >
+        <GroupForm onSubmit={handleCreateGroup} onCancel={closeModal} />
+      </Modal>
+
+      <Modal
+        isOpen={modalType === "editGroup"}
+        onClose={closeModal}
+        title="Editar Grupo"
+      >
+        <GroupForm
+          group={selectedGroup}
+          onSubmit={handleEditGroup}
+          onCancel={closeModal}
+        />
+      </Modal>
+
+      <Modal
+        isOpen={modalType === "deleteGroup"}
+        onClose={closeModal}
+        title="Eliminar Grupo"
+      >
+        <ConfirmDialog
+          message={`¿Estás seguro de que deseas eliminar el grupo "\${selectedGroup?.name}"? Esta acción también eliminará todas las clases asociadas.`}
+          onConfirm={handleDeleteGroup}
+          onCancel={closeModal}
+          isDeleting={isDeleting}
+        />
+      </Modal>
     </div>
   );
 }
