@@ -16,7 +16,7 @@ function isPublic(pathname: string) {
   return false;
 }
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   if (isPublic(pathname)) {
@@ -27,7 +27,7 @@ export function middleware(request: NextRequest) {
 
   let session = null;
   try {
-    session = verifySessionToken(token);
+    session = await verifySessionToken(token);
   } catch (error) {
     console.error("Error verificando sesión en middleware:", error);
   }
