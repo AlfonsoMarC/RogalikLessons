@@ -2,9 +2,21 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 
 export default function Navbar() {
   const pathname = usePathname();
+  const router = useRouter();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  if (pathname === "/login") return null;
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    await fetch("/api/auth/logout", { method: "POST" });
+    router.push("/login");
+  };
 
   const navItems = [
     { href: "/", label: "Alumnos y Grupos" },
@@ -38,6 +50,14 @@ export default function Navbar() {
                 {item.label}
               </Link>
             ))}
+            <button
+              type="button"
+              onClick={handleLogout}
+              disabled={isLoggingOut}
+              className="px-3 py-2 rounded-md text-sm font-medium bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-60"
+            >
+              {isLoggingOut ? "Saliendo..." : "Cerrar sesión"}
+            </button>
           </div>
         </div>
       </div>
