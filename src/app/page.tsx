@@ -5,31 +5,36 @@ import Modal from "@/components/Modal";
 import StudentForm from "@/components/StudentForm";
 import GroupForm from "@/components/GroupForm";
 import ConfirmDialog from "@/components/ConfirmDialog";
-import { StudentWithPendingPayment, GroupWithPendingPayment } from "@/types";
+import { StudentWithPendingPayment, GroupWithPendingPayment, Lesson } from "@/types";
 
 type ModalType = "createStudent" | "editStudent" | "deleteStudent" | "createGroup" | "editGroup" | "deleteGroup" | null;
 
 export default function StudentsAndGroupsPage() {
   const [students, setStudents] = useState<StudentWithPendingPayment[]>([]);
   const [groups, setGroups] = useState<GroupWithPendingPayment[]>([]);
+  const [lessons, setLessons] = useState<Lesson[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [modalType, setModalType] = useState<ModalType>(null);
   const [selectedStudent, setSelectedStudent] = useState<StudentWithPendingPayment | null>(null);
   const [selectedGroup, setSelectedGroup] = useState<GroupWithPendingPayment | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [summaryDate, setSummaryDate] = useState(new Date());
 
   const fetchData = async () => {
     try {
-      const [studentsRes, groupsRes] = await Promise.all([
+      const [studentsRes, groupsRes, lessonsRes] = await Promise.all([
         fetch("/api/students"),
         fetch("/api/groups"),
+        fetch("/api/lessons"),
       ]);
 
-      if (studentsRes.ok && groupsRes.ok) {
+      if (studentsRes.ok && groupsRes.ok && lessonsRes.ok) {
         const studentsData = await studentsRes.json();
         const groupsData = await groupsRes.json();
+        const lessonsData = await lessonsRes.json();
         setStudents(studentsData);
         setGroups(groupsData);
+        setLessons(lessonsData);
       }
     } catch (error) {
       console.error("Error fetching data:", error);
@@ -147,6 +152,57 @@ export default function StudentsAndGroupsPage() {
     }).format(amount);
   };
 
+  const monthNames = [
+    "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+    "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+  ];
+
+  const prevMonth = () => {
+    setSummaryDate(new Date(summaryDate.getFullYear(), summaryDate.getMonth() - 1, 1));
+  };
+
+  const nextMonth = () => {
+    setSummaryDate(new Date(summaryDate.getFullYear(), summaryDate.getMonth() + 1, 1));
+  };
+
+  // Calculate monthly summary
+  const getMonthlyLessons = () => {
+    return lessons.filter((lesson) => {
+      const lessonDate = new Date(lesson.start);
+      return (
+        lessonDate.getMonth() === summaryDate.getMonth() &&
+        lessonDate.getFullYear() === summaryDate.getFullYear()
+      );
+    });
+  };
+
+  const monthlyLessons = getMonthlyLessons();
+  const now = new Date();
+
+  // Pagos pendientes propios (clases realizadas, no pagadas, no externas)
+  const pendingOwn = monthlyLessons
+    .filter((l) => !l.paid && !l.external && new Date(l.end) <= now)
+    .reduce((sum, l) => sum + l.price, 0);
+
+  // Ingresos cobrados propios (clases pagadas, no externas)
+  const incomeOwn = monthlyLessons
+    .filter((l) => l.paid && !l.external)
+    .reduce((sum, l) => sum + l.price, 0);
+
+  // Pagos pendientes de Aga (clases realizadas, no pagadas, externas)
+  const pendingAga = monthlyLessons
+    .filter((l) => !l.paid && l.external && new Date(l.end) <= now)
+    .reduce((sum, l) => sum + l.price, 0);
+
+  // Ingresos cobrados de Aga (clases pagadas, externas)
+  const incomeAga = monthlyLessons
+    .filter((l) => l.paid && l.external)
+    .reduce((sum, l) => sum + l.price, 0);
+
+  // Totales
+  const totalIncome = incomeOwn + incomeAga;
+  const totalPending = pendingOwn + pendingAga;
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -156,10 +212,12 @@ export default function StudentsAndGroupsPage() {
   }
 
   return (
-    <div className="space-y-8">
-      <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-        Mis Alumnos y Grupos
-      </h1>
+    <div className="flex flex-col lg:flex-row gap-8">
+      {/* Main Content */}
+      <div className="flex-1 space-y-8">
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+          Mis Alumnos y Grupos
+        </h1>
 
       {/* Students Section */}
       <section>
@@ -192,14 +250,14 @@ export default function StudentsAndGroupsPage() {
                       {student.name}
                     </h3>
                     <p
-                      className={`text-sm mt-1 \${
+                      className={`text-sm mt-1 ${
                         student.pendingPayment > 0
                           ? "text-red-600 dark:text-red-400 font-medium"
                           : "text-green-600 dark:text-green-400"
                       }`}
                     >
                       {student.pendingPayment > 0
-                        ? `Pendiente: \${formatCurrency(student.pendingPayment)}`
+                        ? `Pendiente: ${formatCurrency(student.pendingPayment)}`
                         : "Sin pagos pendientes"}
                     </p>
                   </div>
@@ -267,7 +325,7 @@ export default function StudentsAndGroupsPage() {
                       {group.name}
                     </h3>
                     <p
-                      className={`text-sm mt-1 \${
+                      className={`text-sm mt-1 ${
                         group.pendingPayment > 0
                           ? "text-red-600 dark:text-red-400 font-medium"
                           : "text-green-600 dark:text-green-400"
@@ -310,6 +368,81 @@ export default function StudentsAndGroupsPage() {
           </div>
         )}
       </section>
+      </div>
+
+      {/* Aside - Monthly Summary */}
+      <aside className="lg:w-80 shrink-0">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 sticky top-4">
+          {/* Month Selector */}
+          <div className="flex items-center justify-between mb-4">
+            <button
+              onClick={prevMonth}
+              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
+            >
+              <svg className="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+              {monthNames[summaryDate.getMonth()]} {summaryDate.getFullYear()}
+            </h3>
+            <button
+              onClick={nextMonth}
+              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
+            >
+              <svg className="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+          </div>
+
+          {/* Summary Table */}
+          <div className="space-y-3">
+            {/* Propios */}
+            <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700">
+              <span className="text-sm text-gray-600 dark:text-gray-400">Pendiente propio</span>
+              <span className={`font-medium ${pendingOwn > 0 ? "text-red-600 dark:text-red-400" : "text-gray-900 dark:text-white"}`}>
+                {formatCurrency(pendingOwn)}
+              </span>
+            </div>
+            <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700">
+              <span className="text-sm text-gray-600 dark:text-gray-400">Cobrado propio</span>
+              <span className="font-medium text-green-600 dark:text-green-400">
+                {formatCurrency(incomeOwn)}
+              </span>
+            </div>
+            {/* De Aga */}
+            <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700">
+              <span className="text-sm text-gray-600 dark:text-gray-400">Pendiente Aga</span>
+              <span className={`font-medium ${pendingAga > 0 ? "text-purple-600 dark:text-purple-400" : "text-gray-900 dark:text-white"}`}>
+                {formatCurrency(pendingAga)}
+              </span>
+            </div>
+            <div className="flex justify-between items-center py-2">
+              <span className="text-sm text-gray-600 dark:text-gray-400">Cobrado Aga</span>
+              <span className="font-medium text-purple-600 dark:text-purple-400">
+                {formatCurrency(incomeAga)}
+              </span>
+            </div>
+          </div>
+
+          {/* Totals */}
+          <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 space-y-2">
+            <div className="flex justify-between items-center">
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Total cobrado</span>
+              <span className="font-bold text-green-600 dark:text-green-400">
+                {formatCurrency(totalIncome)}
+              </span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Total pendiente</span>
+              <span className={`font-bold ${totalPending > 0 ? "text-red-600 dark:text-red-400" : "text-gray-900 dark:text-white"}`}>
+                {formatCurrency(totalPending)}
+              </span>
+            </div>
+          </div>
+        </div>
+      </aside>
 
       {/* Modals */}
       <Modal

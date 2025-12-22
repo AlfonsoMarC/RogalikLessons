@@ -1,34 +1,58 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Lesson, Student, Group } from "@/types";
-
-interface CalendarLesson extends Lesson {
-  student?: Student | null;
-  group?: Group | null;
-}
+import LessonForm, { LessonWithRelations } from "@/components/LessonForm";
+import { Student, Group } from "@/types";
 
 export default function CalendarPage() {
-  const [lessons, setLessons] = useState<CalendarLesson[]>([]);
+  const [lessons, setLessons] = useState<LessonWithRelations[]>([]);
+  const [students, setStudents] = useState<Student[]>([]);
+  const [groups, setGroups] = useState<Group[]>([]);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [isLoading, setIsLoading] = useState(true);
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [selectedLesson, setSelectedLesson] = useState<LessonWithRelations | null>(null);
 
   useEffect(() => {
-    fetchLessons();
+    fetchData();
   }, []);
 
-  const fetchLessons = async () => {
+  const fetchData = async () => {
     try {
-      const res = await fetch("/api/lessons");
-      if (res.ok) {
-        const data = await res.json();
-        setLessons(data);
+      const [lessonsRes, studentsRes, groupsRes] = await Promise.all([
+        fetch("/api/lessons"),
+        fetch("/api/students"),
+        fetch("/api/groups"),
+      ]);
+
+      if (lessonsRes.ok && studentsRes.ok && groupsRes.ok) {
+        const lessonsData = await lessonsRes.json();
+        const studentsData = await studentsRes.json();
+        const groupsData = await groupsRes.json();
+        setLessons(lessonsData);
+        setStudents(studentsData);
+        setGroups(groupsData);
       }
     } catch (error) {
-      console.error("Error fetching lessons:", error);
+      console.error("Error fetching data:", error);
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const openCreateModal = () => {
+    setSelectedLesson(null);
+    setIsFormOpen(true);
+  };
+
+  const openEditModal = (lesson: LessonWithRelations) => {
+    setSelectedLesson(lesson);
+    setIsFormOpen(true);
+  };
+
+  const closeModal = () => {
+    setIsFormOpen(false);
+    setSelectedLesson(null);
   };
 
   const getDaysInMonth = (date: Date) => {
@@ -97,9 +121,17 @@ export default function CalendarPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-        Calendario
-      </h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+          Calendario
+        </h1>
+        <button
+          onClick={openCreateModal}
+          className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors"
+        >
+          + Nueva Clase
+        </button>
+      </div>
 
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
         {/* Calendar Header */}
@@ -194,13 +226,14 @@ export default function CalendarPage() {
                           : "bg-gray-100 dark:bg-gray-600 text-gray-700 dark:text-gray-300";
 
                     return (
-                      <div
+                      <button
                         key={lesson.id}
-                        className={`text-xs p-1 rounded truncate ${colorClass}`}
+                        onClick={() => openEditModal(lesson)}
+                        className={`w-full text-left text-xs p-1 rounded truncate ${colorClass} hover:opacity-80 transition-opacity`}
                         title={`${lessonName} - ${formatTime(lesson.start)}`}
                       >
                         {formatTime(lesson.start)} {lessonName}
-                      </div>
+                      </button>
                     );
                   })}
                   {dayLessons.length > 3 && (
@@ -234,6 +267,15 @@ export default function CalendarPage() {
           <span className="text-gray-600 dark:text-gray-400">De aga</span>
         </div>
       </div>
+
+      <LessonForm
+        isOpen={isFormOpen}
+        onClose={closeModal}
+        lesson={selectedLesson}
+        students={students}
+        groups={groups}
+        onSave={fetchData}
+      />
     </div>
   );
 }
