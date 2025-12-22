@@ -338,7 +338,7 @@ export default function StudentsAndGroupsPage() {
         title="Eliminar Alumno"
       >
         <ConfirmDialog
-          message={`¿Estás seguro de que deseas eliminar a "\${selectedStudent?.name}"? Esta acción también eliminará todas las clases asociadas.`}
+          message={`¿Estás seguro de que deseas eliminar a "${selectedStudent?.name}"? Esta acción también eliminará todas las clases asociadas.`}
           onConfirm={handleDeleteStudent}
           onCancel={closeModal}
           isDeleting={isDeleting}

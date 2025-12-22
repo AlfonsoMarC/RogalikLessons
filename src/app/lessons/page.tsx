@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Modal from "@/components/Modal";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import DateTimeRangePicker from "@/components/DateTimePicker";
 import { Lesson, Student, Group } from "@/types";
 
 interface LessonWithRelations extends Lesson {
@@ -20,6 +21,7 @@ export default function LessonsPage() {
   const [modalType, setModalType] = useState<ModalType>(null);
   const [selectedLesson, setSelectedLesson] = useState<LessonWithRelations | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
   // Form state
   const [formData, setFormData] = useState({
@@ -211,14 +213,22 @@ export default function LessonsPage() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                   Clase
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  Fecha/Hora
+                <th 
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 select-none"
+                  onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
+                >
+                  <div className="flex items-center gap-1">
+                    Fecha/Hora
+                    <span className="text-gray-400">
+                      {sortOrder === "asc" ? "↑" : "↓"}
+                    </span>
+                  </div>
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                   Precio
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  Estado
+                  Pago
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                   Acciones
@@ -226,7 +236,13 @@ export default function LessonsPage() {
               </tr>
             </thead>
             <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-              {lessons.map((lesson) => (
+              {[...lessons]
+                .sort((a, b) => {
+                  const dateA = new Date(a.start).getTime();
+                  const dateB = new Date(b.start).getTime();
+                  return sortOrder === "asc" ? dateA - dateB : dateB - dateA;
+                })
+                .map((lesson) => (
                 <tr key={lesson.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center gap-2">
@@ -240,7 +256,7 @@ export default function LessonsPage() {
                       </span>
                       {lesson.external && (
                         <span className="px-2 py-1 text-xs bg-purple-100 dark:bg-purple-900/50 text-purple-800 dark:text-purple-200 rounded">
-                          Externo
+                          De Aga
                         </span>
                       )}
                     </div>
@@ -257,7 +273,9 @@ export default function LessonsPage() {
                       className={`px-3 py-1 text-xs font-medium rounded-full transition-colors ${
                         lesson.paid
                           ? "bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-200 hover:bg-green-200 dark:hover:bg-green-900"
-                          : "bg-red-100 dark:bg-red-900/50 text-red-800 dark:text-red-200 hover:bg-red-200 dark:hover:bg-red-900"
+                          : new Date(lesson.end) < new Date()
+                            ? "bg-red-100 dark:bg-red-900/50 text-red-800 dark:text-red-200 hover:bg-red-200 dark:hover:bg-red-900"
+                            : "bg-gray-100 dark:bg-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-500"
                       }`}
                     >
                       {lesson.paid ? "✓ Pagado" : "Pendiente"}
@@ -294,6 +312,7 @@ export default function LessonsPage() {
         isOpen={modalType === "create" || modalType === "edit"}
         onClose={closeModal}
         title={selectedLesson ? "Editar Clase" : "Nueva Clase"}
+        closeOnClickOutside={false}
       >
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -370,32 +389,13 @@ export default function LessonsPage() {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Inicio
-              </label>
-              <input
-                type="datetime-local"
-                value={formData.start}
-                onChange={(e) => setFormData({ ...formData, start: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Fin
-              </label>
-              <input
-                type="datetime-local"
-                value={formData.end}
-                onChange={(e) => setFormData({ ...formData, end: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-                required
-              />
-            </div>
-          </div>
+          <DateTimeRangePicker
+            startValue={formData.start}
+            endValue={formData.end}
+            onStartChange={(value) => setFormData((prev) => ({ ...prev, start: value }))}
+            onEndChange={(value) => setFormData((prev) => ({ ...prev, end: value }))}
+            required
+          />
 
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -403,7 +403,7 @@ export default function LessonsPage() {
             </label>
             <input
               type="number"
-              step="0.01"
+              step="1"
               min="0"
               value={formData.price}
               onChange={(e) => setFormData({ ...formData, price: e.target.value })}
@@ -420,7 +420,7 @@ export default function LessonsPage() {
                 onChange={(e) => setFormData({ ...formData, external: e.target.checked })}
                 className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
               />
-              <span className="text-sm text-gray-700 dark:text-gray-300">Clase externa</span>
+              <span className="text-sm text-gray-700 dark:text-gray-300">De Aga</span>
             </label>
             <label className="flex items-center gap-2">
               <input

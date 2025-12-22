@@ -171,19 +171,38 @@ export default function CalendarPage() {
                   {day}
                 </div>
                 <div className="space-y-1">
-                  {dayLessons.slice(0, 3).map((lesson) => (
-                    <div
-                      key={lesson.id}
-                      className={`text-xs p-1 rounded truncate ${
-                        lesson.type === "student"
-                          ? "bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200"
-                          : "bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-200"
-                      } ${lesson.paid ? "opacity-60" : ""}`}
-                      title={`${lesson.title} - ${formatTime(lesson.start)}`}
-                    >
-                      {formatTime(lesson.start)} {lesson.title}
-                    </div>
-                  ))}
+                  {dayLessons.slice(0, 3).map((lesson) => {
+                    const lessonName = lesson.type === "student" && lesson.student
+                      ? lesson.student.name
+                      : lesson.type === "group" && lesson.group
+                        ? lesson.group.name
+                        : lesson.title || "Sin título";
+                    
+                    const isPast = new Date(lesson.end) < new Date();
+                    
+                    // Color coding:
+                    // - Green: paid
+                    // - Red: unpaid and past (done)
+                    // - Gray: unpaid and future (not done yet)
+                    // - Purple/Violet: external
+                    const colorClass = lesson.external
+                      ? "bg-purple-100 dark:bg-purple-900/50 text-purple-800 dark:text-purple-200"
+                      : lesson.paid
+                        ? "bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-200"
+                        : isPast
+                          ? "bg-red-100 dark:bg-red-900/50 text-red-800 dark:text-red-200"
+                          : "bg-gray-100 dark:bg-gray-600 text-gray-700 dark:text-gray-300";
+
+                    return (
+                      <div
+                        key={lesson.id}
+                        className={`text-xs p-1 rounded truncate ${colorClass}`}
+                        title={`${lessonName} - ${formatTime(lesson.start)}`}
+                      >
+                        {formatTime(lesson.start)} {lessonName}
+                      </div>
+                    );
+                  })}
                   {dayLessons.length > 3 && (
                     <div className="text-xs text-gray-500 dark:text-gray-400">
                       +{dayLessons.length - 3} más
@@ -197,18 +216,22 @@ export default function CalendarPage() {
       </div>
 
       {/* Legend */}
-      <div className="flex gap-4 text-sm">
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 bg-blue-100 dark:bg-blue-900/50 rounded"></div>
-          <span className="text-gray-600 dark:text-gray-400">Alumno</span>
-        </div>
+      <div className="flex flex-wrap gap-4 text-sm">
         <div className="flex items-center gap-2">
           <div className="w-4 h-4 bg-green-100 dark:bg-green-900/50 rounded"></div>
-          <span className="text-gray-600 dark:text-gray-400">Grupo</span>
+          <span className="text-gray-600 dark:text-gray-400">Pagado</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-4 h-4 bg-gray-200 dark:bg-gray-600 rounded opacity-60"></div>
-          <span className="text-gray-600 dark:text-gray-400">Pagado</span>
+          <div className="w-4 h-4 bg-gray-100 dark:bg-gray-600 rounded"></div>
+          <span className="text-gray-600 dark:text-gray-400">Pendiente de pago</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 bg-red-100 dark:bg-red-900/50 rounded"></div>
+          <span className="text-gray-600 dark:text-gray-400">Pago atrasado</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 bg-purple-100 dark:bg-purple-900/50 rounded"></div>
+          <span className="text-gray-600 dark:text-gray-400">De aga</span>
         </div>
       </div>
     </div>

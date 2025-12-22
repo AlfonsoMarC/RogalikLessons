@@ -28,7 +28,7 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { title, start, end, external, paid, price, type, studentId, groupId } = body;
 
-    if (!title || !start || !end || price === undefined || !type) {
+    if (!start || !end || price === undefined || !type) {
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }
@@ -51,7 +51,7 @@ export async function POST(request: Request) {
 
     const lesson = await prisma.lesson.create({
       data: {
-        title,
+        title: title || "",
         start: new Date(start),
         end: new Date(end),
         external: external || false,
