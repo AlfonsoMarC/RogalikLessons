@@ -1,4 +1,4 @@
-import { createHmac, timingSafeEqual } from "crypto";
+import { createHmac, timingSafeEqual } from "node:crypto";
 
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 30; // 30 días
 

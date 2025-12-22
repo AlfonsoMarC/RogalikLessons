@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { verifySessionToken } from "./src/lib/auth";
+import { verifySessionToken } from "@/lib/auth";
 
 const PUBLIC_PATHS = [
   "/login",
@@ -24,7 +24,13 @@ export function middleware(request: NextRequest) {
   }
 
   const token = request.cookies.get("session")?.value;
-  const session = verifySessionToken(token);
+
+  let session = null;
+  try {
+    session = verifySessionToken(token);
+  } catch (error) {
+    console.error("Error verificando sesión en middleware:", error);
+  }
 
   if (!session) {
     const response = NextResponse.redirect(new URL("/login", request.url));
