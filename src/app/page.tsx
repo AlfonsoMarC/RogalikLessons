@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Image from "next/image";
 import Modal from "@/components/Modal";
 import StudentForm from "@/components/StudentForm";
 import GroupForm from "@/components/GroupForm";
@@ -439,6 +440,20 @@ export default function StudentsAndGroupsPage() {
               <span className={`font-bold ${totalPending > 0 ? "text-red-600 dark:text-red-400" : "text-gray-900 dark:text-white"}`}>
                 {formatCurrency(totalPending)}
               </span>
+            </div>
+          </div>
+
+          {/* Logo image below summary, full-bleed inside card (no visible borders) */}
+          <div className="mt-4 hidden lg:block -mx-4 -mb-4">
+            <div className="relative w-full aspect-square overflow-hidden rounded-b-lg">
+              <Image
+                src="/rogalik.png"
+                alt="Rogalik logo"
+                fill
+                sizes="(min-width: 1024px) 320px"
+                className="object-cover select-none pointer-events-none"
+                priority
+              />
             </div>
           </div>
         </div>

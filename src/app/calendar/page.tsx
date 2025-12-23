@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import LessonForm, { LessonWithRelations } from "@/components/LessonForm";
+import Modal from "@/components/Modal";
 import { Student, Group } from "@/types";
 
 export default function CalendarPage() {
@@ -12,6 +13,12 @@ export default function CalendarPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [selectedLesson, setSelectedLesson] = useState<LessonWithRelations | null>(null);
+  const [initialDate, setInitialDate] = useState<Date | null>(null);
+  const [dayModal, setDayModal] = useState<{
+    open: boolean;
+    date: Date | null;
+    lessons: LessonWithRelations[];
+  }>({ open: false, date: null, lessons: [] });
 
   useEffect(() => {
     fetchData();
@@ -40,8 +47,9 @@ export default function CalendarPage() {
     }
   };
 
-  const openCreateModal = () => {
+  const openCreateModal = (date?: Date) => {
     setSelectedLesson(null);
+    setInitialDate(date || null);
     setIsFormOpen(true);
   };
 
@@ -53,6 +61,7 @@ export default function CalendarPage() {
   const closeModal = () => {
     setIsFormOpen(false);
     setSelectedLesson(null);
+    setInitialDate(null);
   };
 
   const getDaysInMonth = (date: Date) => {
@@ -86,6 +95,43 @@ export default function CalendarPage() {
       minute: "2-digit",
     });
   };
+
+  const formatDate = (date: Date) =>
+    date.toLocaleDateString("es-ES", {
+      weekday: "long",
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
+    });
+
+  const colorClassForLesson = (lesson: LessonWithRelations) => {
+    const isPast = new Date(lesson.end) < new Date();
+    if (lesson.external) return "bg-purple-100 dark:bg-purple-900/50 text-purple-800 dark:text-purple-200";
+    if (lesson.paid) return "bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-200";
+    if (isPast) return "bg-red-100 dark:bg-red-900/50 text-red-800 dark:text-red-200";
+    return "bg-gray-100 dark:bg-gray-600 text-gray-700 dark:text-gray-300";
+  };
+
+  const colorDotClassForLesson = (lesson: LessonWithRelations) => {
+    const isPast = new Date(lesson.end) < new Date();
+    if (lesson.external)
+      return "bg-purple-100 dark:bg-purple-900/50 ring-2 ring-offset-1 ring-white dark:ring-gray-900";
+    if (lesson.paid)
+      return "bg-green-100 dark:bg-green-900/50 ring-2 ring-offset-1 ring-white dark:ring-gray-900";
+    if (isPast)
+      return "bg-red-100 dark:bg-red-900/50 ring-2 ring-offset-1 ring-white dark:ring-gray-900";
+    return "bg-gray-100 dark:bg-gray-600 ring-2 ring-offset-1 ring-white dark:ring-gray-900";
+  };
+
+  const openDayModal = (day: number) => {
+    const date = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
+    const lessonsForDay = getLessonsForDay(day).sort(
+      (a, b) => new Date(a.start).getTime() - new Date(b.start).getTime()
+    );
+    setDayModal({ open: true, date, lessons: lessonsForDay });
+  };
+
+  const closeDayModal = () => setDayModal({ open: false, date: null, lessons: [] });
 
   const monthNames = [
     "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
@@ -121,37 +167,25 @@ export default function CalendarPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-          Calendario
-        </h1>
-        <button
-          onClick={openCreateModal}
-          className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors"
-        >
-          + Nueva Clase
-        </button>
-      </div>
-
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
         {/* Calendar Header */}
-        <div className="flex items-center justify-between p-4 bg-blue-600 text-white">
+        <div className="flex items-center justify-between p-3 bg-blue-600 text-white">
           <button
             onClick={prevMonth}
-            className="p-2 hover:bg-blue-700 rounded-full transition-colors"
+            className="p-1.5 hover:bg-blue-700 rounded-full transition-colors"
           >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
           </button>
-          <h2 className="text-xl font-semibold">
+          <h2 className="text-lg font-semibold">
             {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
           </h2>
           <button
             onClick={nextMonth}
-            className="p-2 hover:bg-blue-700 rounded-full transition-colors"
+            className="p-1.5 hover:bg-blue-700 rounded-full transition-colors"
           >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
           </button>
@@ -175,7 +209,7 @@ export default function CalendarPage() {
           {Array.from({ length: startingDay }, (_, i) => (
             <div
               key={`empty-${i}`}
-              className="min-h-24 p-2 border border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900"
+              className="h-32 sm:h-40 p-1.5 border border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900"
             />
           ))}
 
@@ -185,16 +219,18 @@ export default function CalendarPage() {
             const dayLessons = getLessonsForDay(day);
 
             return (
-              <div
+              <button
+                type="button"
+                onClick={() => openDayModal(day)}
                 key={day}
-                className={`min-h-24 p-2 border border-gray-100 dark:border-gray-700 ${
+                className={`h-32 sm:h-40 p-1.5 border border-gray-100 dark:border-gray-700 text-left w-full flex flex-col overflow-hidden ${
                   isToday(day)
                     ? "bg-blue-50 dark:bg-blue-900/20"
                     : "bg-white dark:bg-gray-800"
                 }`}
               >
                 <div
-                  className={`text-sm font-medium mb-1 ${
+                  className={`text-xs font-medium self-start mb-0.5 ${
                     isToday(day)
                       ? "text-blue-600 dark:text-blue-400"
                       : "text-gray-900 dark:text-white"
@@ -202,47 +238,46 @@ export default function CalendarPage() {
                 >
                   {day}
                 </div>
-                <div className="space-y-1">
-                  {dayLessons.slice(0, 3).map((lesson) => {
-                    const lessonName = lesson.type === "student" && lesson.student
-                      ? lesson.student.name
-                      : lesson.type === "group" && lesson.group
-                        ? lesson.group.name
-                        : lesson.title || "Sin título";
-                    
-                    const isPast = new Date(lesson.end) < new Date();
-                    
-                    // Color coding:
-                    // - Green: paid
-                    // - Red: unpaid and past (done)
-                    // - Gray: unpaid and future (not done yet)
-                    // - Purple/Violet: external
-                    const colorClass = lesson.external
-                      ? "bg-purple-100 dark:bg-purple-900/50 text-purple-800 dark:text-purple-200"
-                      : lesson.paid
-                        ? "bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-200"
-                        : isPast
-                          ? "bg-red-100 dark:bg-red-900/50 text-red-800 dark:text-red-200"
-                          : "bg-gray-100 dark:bg-gray-600 text-gray-700 dark:text-gray-300";
-
-                    return (
-                      <button
+                <div className="space-y-0.5 flex-1">
+                  <div className="flex flex-wrap gap-1 sm:hidden">
+                    {dayLessons.slice(0, 4).map((lesson) => (
+                      <span
                         key={lesson.id}
-                        onClick={() => openEditModal(lesson)}
-                        className={`w-full text-left text-xs p-1 rounded truncate ${colorClass} hover:opacity-80 transition-opacity`}
-                        title={`${lessonName} - ${formatTime(lesson.start)}`}
-                      >
-                        {formatTime(lesson.start)} {lessonName}
-                      </button>
-                    );
-                  })}
-                  {dayLessons.length > 3 && (
-                    <div className="text-xs text-gray-500 dark:text-gray-400">
-                      +{dayLessons.length - 3} más
-                    </div>
-                  )}
+                        className={`w-2.5 h-2.5 rounded-full inline-block ${colorDotClassForLesson(lesson)}`}
+                        title={formatTime(lesson.start)}
+                      ></span>
+                    ))}
+                    {dayLessons.length > 4 && (
+                      <span className="text-[10px] text-gray-500 dark:text-gray-400">+{dayLessons.length - 4}</span>
+                    )}
+                  </div>
+
+                  <div className="hidden sm:block space-y-0.5">
+                    {dayLessons.slice(0, 6).map((lesson) => {
+                      const lessonName = lesson.type === "student" && lesson.student
+                        ? lesson.student.name
+                        : lesson.type === "group" && lesson.group
+                          ? lesson.group.name
+                          : lesson.title || "Sin título";
+
+                      return (
+                        <span
+                          key={lesson.id}
+                          className={`block w-full text-left text-[10px] leading-tight px-1 py-0.5 rounded truncate ${colorClassForLesson(lesson)}`}
+                          title={`${lessonName} - ${formatTime(lesson.start)}`}
+                        >
+                          {formatTime(lesson.start)} {lessonName}
+                        </span>
+                      );
+                    })}
+                    {dayLessons.length > 6 && (
+                      <div className="text-[10px] text-gray-500 dark:text-gray-400 px-1">
+                        +{dayLessons.length - 6} más
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
+              </button>
             );
           })}
         </div>
@@ -272,10 +307,58 @@ export default function CalendarPage() {
         isOpen={isFormOpen}
         onClose={closeModal}
         lesson={selectedLesson}
+        initialDate={initialDate}
         students={students}
         groups={groups}
         onSave={fetchData}
       />
+
+      <Modal
+        isOpen={dayModal.open}
+        onClose={closeDayModal}
+        title={dayModal.date ? formatDate(dayModal.date) : "Clases"}
+      >
+        <div className="space-y-3">
+          {dayModal.lessons.length === 0 ? (
+            <div className="text-sm text-gray-500 dark:text-gray-400">No hay clases este día.</div>
+          ) : (
+            <div className="space-y-2">
+            {dayModal.lessons.map((lesson) => {
+              const lessonName = lesson.type === "student" && lesson.student
+                ? lesson.student.name
+                : lesson.type === "group" && lesson.group
+                  ? lesson.group.name
+                  : lesson.title || "Sin título";
+
+              return (
+                <button
+                  key={lesson.id}
+                  className={`w-full text-left px-3 py-2 rounded-md text-sm flex items-center gap-2 ${colorClassForLesson(lesson)}`}
+                  onClick={() => {
+                    setSelectedLesson(lesson);
+                    setIsFormOpen(true);
+                    closeDayModal();
+                  }}
+                >
+                  <span className="font-semibold">{formatTime(lesson.start)}</span>
+                  <span className="truncate">{lessonName}</span>
+                </button>
+              );
+            })}
+            </div>
+          )}
+          
+          <button
+            onClick={() => {
+              openCreateModal(dayModal.date || undefined);
+              closeDayModal();
+            }}
+            className="w-full px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors"
+          >
+            + Nueva Clase
+          </button>
+        </div>
+      </Modal>
     </div>
   );
 }

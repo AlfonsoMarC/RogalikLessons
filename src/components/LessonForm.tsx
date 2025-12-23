@@ -15,6 +15,7 @@ interface LessonFormProps {
   isOpen: boolean;
   onClose: () => void;
   lesson?: LessonWithRelations | null;
+  initialDate?: Date | null;
   students: Student[];
   groups: Group[];
   onSave: () => void;
@@ -44,10 +45,19 @@ const initialFormData: LessonFormData = {
   groupId: "",
 };
 
+// Convert stored Date/ISO to local datetime-local string without shifting hours
+const toLocalInputValue = (value: Date | string) => {
+  const date = new Date(value);
+  const offsetMs = date.getTimezoneOffset() * 60000;
+  const local = new Date(date.getTime() - offsetMs);
+  return local.toISOString().slice(0, 16);
+};
+
 export default function LessonForm({
   isOpen,
   onClose,
   lesson,
+  initialDate,
   students,
   groups,
   onSave,
@@ -60,8 +70,8 @@ export default function LessonForm({
     if (lesson) {
       setFormData({
         title: lesson.title,
-        start: new Date(lesson.start).toISOString().slice(0, 16),
-        end: new Date(lesson.end).toISOString().slice(0, 16),
+        start: toLocalInputValue(lesson.start),
+        end: toLocalInputValue(lesson.end),
         external: lesson.external,
         paid: lesson.paid,
         price: lesson.price.toString(),
@@ -69,11 +79,23 @@ export default function LessonForm({
         studentId: lesson.studentId || "",
         groupId: lesson.groupId || "",
       });
+    } else if (initialDate) {
+      // Pre-fill with specified date at 9:00-10:00
+      const start = new Date(initialDate);
+      start.setHours(9, 0, 0, 0);
+      const end = new Date(initialDate);
+      end.setHours(10, 0, 0, 0);
+      
+      setFormData({
+        ...initialFormData,
+        start: toLocalInputValue(start),
+        end: toLocalInputValue(end),
+      });
     } else {
       setFormData(initialFormData);
     }
     setShowDeleteConfirm(false);
-  }, [lesson, isOpen]);
+  }, [lesson, initialDate, isOpen]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
