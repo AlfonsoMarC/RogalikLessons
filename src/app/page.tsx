@@ -444,13 +444,13 @@ export default function StudentsAndGroupsPage() {
           </div>
 
           {/* Logo image below summary, full-bleed inside card (no visible borders) */}
-          <div className="mt-4 hidden lg:block -mx-4 -mb-4">
+          <div className="mt-4 -mx-4 -mb-4">
             <div className="relative w-full aspect-square overflow-hidden rounded-b-lg">
               <Image
                 src="/rogalik.png"
                 alt="Rogalik logo"
                 fill
-                sizes="(min-width: 1024px) 320px"
+                sizes="(min-width: 1024px) 320px, (min-width: 640px) 50vw, 100vw"
                 className="object-cover select-none pointer-events-none"
                 priority
               />
