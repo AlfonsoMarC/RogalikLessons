@@ -105,7 +105,15 @@ export default function LessonsPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Clases</h1>
+        <div className="flex items-center justify-between gap-3">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Clases</h1>
+          <button
+            onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
+            className="sm:hidden flex items-center gap-1 text-xs text-blue-600 dark:text-blue-300"
+          >
+            Ordenar {sortOrder === "asc" ? "↑" : "↓"}
+          </button>
+        </div>
         <button
           onClick={openCreateModal}
           className="w-full sm:w-auto px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors"
@@ -158,13 +166,7 @@ export default function LessonsPage() {
                   </button>
                 </div>
 
-                <div className="flex items-center justify-between text-sm text-gray-600 dark:text-gray-300">
-                  <button
-                    onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
-                    className="flex items-center gap-1 text-xs text-blue-600 dark:text-blue-300"
-                  >
-                    Ordenar {sortOrder === "asc" ? "↑" : "↓"}
-                  </button>
+                <div className="flex items-center justify-end text-sm text-gray-600 dark:text-gray-300">
                   <button
                     onClick={() => openEditModal(lesson)}
                     className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
